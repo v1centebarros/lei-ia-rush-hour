@@ -1,4 +1,3 @@
-# 97787 103823
 """Example client."""
 import asyncio
 import getpass
@@ -19,6 +18,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         boards_cache = []
         moves_cache = []
         prev_board = []
+        current_level = ""
 
 
         while True:
@@ -26,29 +26,36 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 state = json.loads(
                     await websocket.recv()
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
-                if not boards_cache and not moves_cache:
+                #print(state["level"])
+                #print(current_level)
+                if (not boards_cache and not moves_cache) or current_level != state["level"]:
+                    #print("HELP" * 80)
                     level = state["grid"].split()[1]
                     size_grid = state["dimensions"]
-                    print(size_grid)
+                    #print(size_grid)
                     boards_cache = solve(level,h,is_goal,size_grid)
                     prev_board = level
+                    current_level = state["level"]
+                    moves_cache = []
 
-                if not moves_cache:
+
+                if not moves_cache and boards_cache:
                     level = state["grid"].split()[1]
                     if prev_board != level:
-                        old_mapping = mapping(level,size_grid)
-                        def new_heuristic(board):
+                        old_mapping = mapping(prev_board,size_grid)
+                        def new_heuristic(board,size_grid):
                             new_mapping = mapping(board,size_grid)
-                            return sum(new_mapping[car][0][0] -
-                                       old_mapping[car][0][0]
-                                       for car in new_mapping)
+                            #distancia cartesianas
+                            return sum((old_mapping[car][0][0] -
+                                       new_mapping[car][0][0])**2 + \
+                                       (old_mapping[car][0][1] -
+                                       new_mapping[car][0][1])**2 for car in new_mapping)
 
                         def new_goal(board,size_grid):
                             return board == prev_board
 
-                        new_boards = reversed(solve(level,new_heuristic,new_goal,size_grid))
-                        for nb in new_boards:
-                            boards_cache.insert(0,nb)
+                        new_boards = solve(level,new_heuristic,new_goal,size_grid)
+                        boards_cache = new_boards + boards_cache
 
                     board = boards_cache.pop(0)
                     car_mapping = mapping(level,size_grid)
@@ -73,11 +80,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                 state["selected"] = ""
 
                             if state["selected"] == car:
-                                moves_cache.append((key, board))
+                                moves_cache.append((key,board))
                             else:
                                 if state["selected"] != "":
                                     moves_cache.append((" ",state["grid"].split()[1]))
-
 
                                 pseudo_cursor = state["cursor"]
 

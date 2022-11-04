@@ -1,5 +1,7 @@
-# 97787 103823
 from collections import defaultdict
+import heapq
+import functools
+
 
 def is_goal(level: str, sizegrid):
     return "A" in level[sizegrid[0]-1::sizegrid[0]]
