@@ -1,6 +1,4 @@
 # 97787 103823
-
-
 """Example client."""
 import asyncio
 import getpass
@@ -30,27 +28,31 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
                 if not boards_cache and not moves_cache:
                     level = state["grid"].split()[1]
-                    boards_cache = solve(level,h,is_goal)
+                    size_grid = state["dimensions"]
+                    print(size_grid)
+                    boards_cache = solve(level,h,is_goal,size_grid)
                     prev_board = level
 
                 if not moves_cache:
                     level = state["grid"].split()[1]
                     if prev_board != level:
-                        old_mapping = mapping(level)
+                        old_mapping = mapping(level,size_grid)
                         def new_heuristic(board):
-                            new_mapping = mapping(board)
-                            return sum(new_mapping[car][0][0] - old_mapping[car][0][0] for car in new_mapping)
+                            new_mapping = mapping(board,size_grid)
+                            return sum(new_mapping[car][0][0] -
+                                       old_mapping[car][0][0]
+                                       for car in new_mapping)
 
-                        def new_goal(board):
+                        def new_goal(board,size_grid):
                             return board == prev_board
 
-                        new_boards = reversed(solve(level,new_heuristic,new_goal))
+                        new_boards = reversed(solve(level,new_heuristic,new_goal,size_grid))
                         for nb in new_boards:
                             boards_cache.insert(0,nb)
 
                     board = boards_cache.pop(0)
-                    car_mapping = mapping(level)
-                    new_mapping = mapping(board)
+                    car_mapping = mapping(level,size_grid)
+                    new_mapping = mapping(board,size_grid)
 
                     for car in car_mapping:
                         if car_mapping[car] != new_mapping[car]:
@@ -67,40 +69,43 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                 key = "w"
 
                             if state["selected"] == car and car != level[state["cursor"][1]*6 + state["cursor"][0]]:
-                                moves_cache.append(key)
+                                moves_cache.append((key, board))
                                 state["selected"] = ""
 
                             if state["selected"] == car:
-                                moves_cache.append(key)
+                                moves_cache.append((key, board))
                             else:
                                 if state["selected"] != "":
-                                    moves_cache.append(" ")
+                                    moves_cache.append((" ",state["grid"].split()[1]))
+
 
                                 pseudo_cursor = state["cursor"]
 
                                 while pseudo_cursor[0] != car_mapping[car][0][0]:
                                     if pseudo_cursor[0] < car_mapping[car][0][0]:
-                                        moves_cache.append("d")
+                                        moves_cache.append(("d",state["grid"].split()[1]))
                                         pseudo_cursor[0] += 1
                                     else:
-                                        moves_cache.append("a")
+                                        moves_cache.append(("a",state["grid"].split()[1]))
                                         pseudo_cursor[0] -= 1
 
 
                                 while pseudo_cursor[1] != car_mapping[car][0][1]:
                                     if pseudo_cursor[1] < car_mapping[car][0][1]:
-                                        moves_cache.append("s")
+                                        moves_cache.append(("s",state["grid"].split()[1]))
                                         pseudo_cursor[1] += 1
                                     else:
-                                        moves_cache.append("w")
+                                        moves_cache.append(("w",state["grid"].split()[1]))
                                         pseudo_cursor[1] -= 1
 
-                                moves_cache.append(" ")
-                                moves_cache.append(key)
-                    prev_board = board
+                                moves_cache.append((" ",state["grid"].split()[1]))
+                                moves_cache.append((key,board))
+
                 if moves_cache:
+                    key, board = moves_cache.pop(0)
+                    prev_board = board
                     await websocket.send(
-                        json.dumps({"cmd": "key", "key": moves_cache.pop(0)})
+                        json.dumps({"cmd": "key", "key": key})
                     )
                 # await websocket.send(
                 #     json.dumps({"cmd": "key", "key": moves_cache.pop(0)})
