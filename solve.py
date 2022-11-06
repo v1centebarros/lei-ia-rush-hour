@@ -1,6 +1,8 @@
+# 97787 103823
 from collections import defaultdict
 import heapq
 import functools
+
 
 
 def is_goal(level: str, sizegrid):
@@ -8,64 +10,72 @@ def is_goal(level: str, sizegrid):
 
 
 def h(level: str,sizegrid):
-    for i in range(sizegrid[0]-1, -1, -1):
-        if "A" in level[i::sizegrid[0]]:
-            return sizegrid[0]-1-i
-    return float("inf")
-
+    return sizegrid[0] - (level.index("A") + level.count("A") - 1)
 
 def mapping(level: str,sizegrid):
     car_map = defaultdict(list)
     [car_map[level[x + y * sizegrid[0]]].append((x, y)) for x in range(sizegrid[0]) for y in range(sizegrid[1]) if level[x + y * sizegrid[0]] not in ["x","o"]]
     return car_map
 
-
+#get_neighbours2.0
 def get_neighbours(level: str,sizegrid):
     car_map = mapping(level,sizegrid)
     neighbours = []
 
-    for car, indexes in car_map.items():
-        vector = (indexes[-1][0] - indexes[0][0], indexes[-1][1] - indexes[0][1])
-        vector = (
-            int(vector[0] / abs(vector[0] + vector[1])),
-            int(vector[1] / abs(vector[0] + vector[1])),
-        )
+    for car, _ in car_map.items():
+        #vertical
+        if(car_map[car][0][0] == car_map[car][-1][0]):
+            pos = [(car_map[car][x][0],car_map[car][x][1]-1) for x in range(len(car_map[car]))]
+            #UP
+            while True:
+                if any([y <0 or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos]):
+                    break;
+                else:
+                    new_level = [("o" if l == car else l) for l in level]
 
-        left_or_up = (indexes[0][0] - vector[0], indexes[0][1] - vector[1])
-        right_or_down = (indexes[-1][0] + vector[0], indexes[-1][1] + vector[1])
-        # print("left_or_up", left_or_up)
-        # print("right_or_down", right_or_down)
-        if (
-                0 <= left_or_up[0] < sizegrid[0]
-                and 0 <= left_or_up[1] < sizegrid[1]
-                and (level[left_or_up[0] + left_or_up[1] * sizegrid[0]] == "o")
-        ):
-            new_level = list(level)
+                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
 
-            for c in range(len(new_level)):
-                if new_level[c] == car:
-                    new_level[c] = "o"
+                    neighbours.append("".join(new_level))
+                    pos= [(pos[x][0],pos[x][1]-1) for x in range(len(pos))]
+            #DOWN
+            pos = [(car_map[car][x][0],car_map[car][x][1]+1) for x in range(len(car_map[car]))]
+            while True:
+                if(any([y >= sizegrid[1] or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos])):
+                    break;
+                else:
+                    new_level = [("o" if l == car else l) for l in level]
 
-            for position in indexes:
-                new_level[(position[1] - vector[1]) * sizegrid[0] + position[0] - vector[0]] = car
+                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
 
-            neighbours.append("".join(new_level))
+                    neighbours.append("".join(new_level))
+                    pos= [(pos[x][0],pos[x][1]+1) for x in range(len(pos))]
 
-        if (
-                0 <= right_or_down[0] < sizegrid[0]
-                and 0 <= right_or_down[1] < sizegrid[1]
-                and (level[right_or_down[0] + right_or_down[1] * sizegrid[0]] == "o")
-        ):
-            new_level = list(level)
+        #horizontal
+        else:
+            pos = [(car_map[car][x][0]-1,car_map[car][x][1]) for x in range(len(car_map[car]))]
+            #LEFT
+            while True:
+                if(any([x <0 or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos])):
+                    break;
+                else:
+                    new_level = [("o" if l == car else l) for l in level]
 
-            for c in range(len(new_level)):
-                if new_level[c] == car:
-                    new_level[c] = "o"
+                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
 
-            for position in indexes:
-                new_level[(position[1] + vector[1]) * sizegrid[0] + position[0] + vector[0]] = car
+                    neighbours.append("".join(new_level))
+                    pos= [(pos[x][0]-1,pos[x][1]) for x in range(len(pos))]
+            #RIGHT
+            pos = [(car_map[car][x][0]+1,car_map[car][x][1]) for x in range(len(car_map[car]))]
+            while True:
+                if(any([x >= sizegrid[0] or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos])):
+                    break;
+                else:
+                    new_level = [("o" if l == car else l) for l in level]
 
-            neighbours.append("".join(new_level))
+                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
+
+                    neighbours.append("".join(new_level))
+                    pos= [(pos[x][0]+1,pos[x][1]) for x in range(len(pos))]
 
     return neighbours
 
@@ -102,3 +112,4 @@ def solve(level: str,heuristic:callable,goal:callable,sizegrid):
                 if neighbour not in open_set:
                     # printf(new_level)
                     open_set.append(neighbour)
+

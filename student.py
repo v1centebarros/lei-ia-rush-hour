@@ -1,3 +1,4 @@
+# 97787 103823
 """Example client."""
 import asyncio
 import getpass
@@ -74,11 +75,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                 key = "s"
                             elif vector[1] < 0:
                                 key = "w"
-
+                            """
                             if state["selected"] == car and car != level[state["cursor"][1]*6 + state["cursor"][0]]:
-                                moves_cache.append((key, board))
+                                moves_cache.extend([(key,board) for _ in  range(sum(vector))])
                                 state["selected"] = ""
-
+                            """
                             if state["selected"] == car:
                                 moves_cache.append((key,board))
                             else:
@@ -105,7 +106,30 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                         pseudo_cursor[1] -= 1
 
                                 moves_cache.append((" ",state["grid"].split()[1]))
-                                moves_cache.append((key,board))
+                                for i in range(1,sum(map(abs,vector))+1):
+                                    new_level = list(level)
+
+                                    for c in range(len(new_level)):
+                                        if new_level[c] == car:
+                                            new_level[c] = "o"
+
+                                    for position in car_mapping[car]:
+                                        #vertical
+                                        if vector[0] == 0:
+                                            #up
+                                            if vector[1] < 0:
+                                                new_level[(position[1] -  i) * size_grid[0] + position[0]] = car
+                                            else : #down
+                                                new_level[(position[1] +  i) * size_grid[0] + position[0]] = car
+                                        else: #horizontal
+                                            #left
+                                            if vector[0] < 0:
+                                                new_level[position[1] * size_grid[0] + position[0] - i] = car
+                                            else: #right
+                                                new_level[position[1] * size_grid[0] + position[0] + i] = car
+
+                                    moves_cache.append((key,"".join(new_level)))
+                                break
 
                 if moves_cache:
                     key, board = moves_cache.pop(0)
