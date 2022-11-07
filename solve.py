@@ -1,8 +1,6 @@
 # 97787 103823
-from collections import defaultdict
-import heapq
-import functools
 
+from collections import defaultdict
 
 
 def is_goal(level: str, sizegrid):

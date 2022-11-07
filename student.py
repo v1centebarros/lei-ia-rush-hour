@@ -1,4 +1,6 @@
 # 97787 103823
+
+
 """Example client."""
 import asyncio
 import getpass
@@ -43,6 +45,8 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 if not moves_cache and boards_cache:
                     level = state["grid"].split()[1]
                     if prev_board != level:
+                        #boards_cache = solve(level,h,is_goal,size_grid)
+
                         old_mapping = mapping(prev_board,size_grid)
                         def new_heuristic(board,size_grid):
                             new_mapping = mapping(board,size_grid)
@@ -81,14 +85,36 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                 state["selected"] = ""
                             """
                             if state["selected"] == car:
-                                moves_cache.append((key,board))
+                                for i in range(1,sum(map(abs,vector))+1):
+                                    new_level = list(level)
+
+                                    for c in range(len(new_level)):
+                                        if new_level[c] == car:
+                                            new_level[c] = "o"
+
+                                    for position in car_mapping[car]:
+                                        #vertical
+                                        if vector[0] == 0:
+                                            #up
+                                            if vector[1] < 0:
+                                                new_level[(position[1] -  i) * size_grid[0] + position[0]] = car
+                                            else : #down
+                                                new_level[(position[1] +  i) * size_grid[0] + position[0]] = car
+                                        else: #horizontal
+                                            #left
+                                            if vector[0] < 0:
+                                                new_level[position[1] * size_grid[0] + (position[0] - i)] = car
+                                            else: #right
+                                                new_level[position[1] * size_grid[0] + (position[0] + i)] = car
+
+                                    moves_cache.append((key,"".join(new_level)))
                             else:
                                 if state["selected"] != "":
                                     moves_cache.append((" ",state["grid"].split()[1]))
 
                                 pseudo_cursor = state["cursor"]
 
-                                while pseudo_cursor[0] != car_mapping[car][0][0]:
+                                while  not (car_mapping[car][0][0] <= pseudo_cursor[0] <= car_mapping[car][-1][0]):
                                     if pseudo_cursor[0] < car_mapping[car][0][0]:
                                         moves_cache.append(("d",state["grid"].split()[1]))
                                         pseudo_cursor[0] += 1
@@ -97,7 +123,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                         pseudo_cursor[0] -= 1
 
 
-                                while pseudo_cursor[1] != car_mapping[car][0][1]:
+                                while not (car_mapping[car][0][1] <= pseudo_cursor[1] <= car_mapping[car][-1][1]):
                                     if pseudo_cursor[1] < car_mapping[car][0][1]:
                                         moves_cache.append(("s",state["grid"].split()[1]))
                                         pseudo_cursor[1] += 1
