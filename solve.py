@@ -1,113 +1,84 @@
 # 97787 103823
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+import heapq
 
+Node = namedtuple("Node", ["f_score", "h_score", "g_score", "level", "car_map"])
+Position = namedtuple("Position", ["x", "y", "size"])
 
 def is_goal(level: str, sizegrid):
     return "A" in level[sizegrid[0]-1::sizegrid[0]]
 
-
 def h(level: str,sizegrid):
-    return sizegrid[0] - (level.index("A") + level.count("A") - 1)
+    return len(set(level.replace("o","").replace("x",""))) * (sizegrid[0] - (level.index("A") + level.count("A") - 1))
 
 def mapping(level: str,sizegrid):
-    car_map = defaultdict(list)
-    [car_map[level[x + y * sizegrid[0]]].append((x, y)) for x in range(sizegrid[0]) for y in range(sizegrid[1]) if level[x + y * sizegrid[0]] not in ["x","o"]]
-    return car_map
+    return {
+        car: Position(level.index(car) % sizegrid[0], level.index(car) // sizegrid[0], level.count(car))
+        for car in set(level.replace("x", "").replace("o", ""))
+    }
 
-#get_neighbours2.0
-def get_neighbours(level: str,sizegrid):
-    car_map = mapping(level,sizegrid)
-    neighbours = []
-
-    for car, _ in car_map.items():
-        #vertical
-        if(car_map[car][0][0] == car_map[car][-1][0]):
-            pos = [(car_map[car][x][0],car_map[car][x][1]-1) for x in range(len(car_map[car]))]
-            #UP
-            while True:
-                if any([y <0 or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos]):
-                    break;
-                else:
-                    new_level = [("o" if l == car else l) for l in level]
-
-                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
-
-                    neighbours.append("".join(new_level))
-                    pos= [(pos[x][0],pos[x][1]-1) for x in range(len(pos))]
-            #DOWN
-            pos = [(car_map[car][x][0],car_map[car][x][1]+1) for x in range(len(car_map[car]))]
-            while True:
-                if(any([y >= sizegrid[1] or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos])):
-                    break;
-                else:
-                    new_level = [("o" if l == car else l) for l in level]
-
-                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
-
-                    neighbours.append("".join(new_level))
-                    pos= [(pos[x][0],pos[x][1]+1) for x in range(len(pos))]
-
+def get_neighbours(level,sizegrid):
+    for car, _ in level.car_map.items():
         #horizontal
-        else:
-            pos = [(car_map[car][x][0]-1,car_map[car][x][1]) for x in range(len(car_map[car]))]
+        if level.level[level.car_map[car].x + level.car_map[car].y * sizegrid[0]] == level.level[level.car_map[car].x + 1 + level.car_map[car].y * sizegrid[0]]:
             #LEFT
-            while True:
-                if(any([x <0 or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos])):
-                    break;
-                else:
-                    new_level = [("o" if l == car else l) for l in level]
+            if level.car_map[car].x > 0 and level.level[level.car_map[car].x -1 + level.car_map[car].y * sizegrid[0]] in ["o",car] :
+                new_level = list(level.level)
+                new_level[level.car_map[car].x -1 + level.car_map[car].y * sizegrid[0]] = car
+                new_level[level.car_map[car].x + level.car_map[car].size -1 + level.car_map[car].y * sizegrid[0]] = "o"
+                yield ("".join(new_level), {**level.car_map, car: Position(level.car_map[car].x -1 , level.car_map[car].y, level.car_map[car].size)})
 
-                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
 
-                    neighbours.append("".join(new_level))
-                    pos= [(pos[x][0]-1,pos[x][1]) for x in range(len(pos))]
             #RIGHT
-            pos = [(car_map[car][x][0]+1,car_map[car][x][1]) for x in range(len(car_map[car]))]
-            while True:
-                if(any([x >= sizegrid[0] or level[x + y * sizegrid[0]] not in ["o",car] for x,y in pos])):
-                    break;
-                else:
-                    new_level = [("o" if l == car else l) for l in level]
+            if level.car_map[car].x + level.car_map[car].size -1 < sizegrid[0]-1 and level.level[level.car_map[car].x +level.car_map[car].size + level.car_map[car].y * sizegrid[0]] in ["o",car] :
+                new_level = list(level.level)
+                new_level[level.car_map[car].x + level.car_map[car].size + level.car_map[car].y * sizegrid[0]] = car
+                new_level[level.car_map[car].x + level.car_map[car].y * sizegrid[0]] = "o"
+                yield ("".join(new_level), {**level.car_map, car: Position(level.car_map[car].x +1 , level.car_map[car].y, level.car_map[car].size)})
+        #vertical
+        else:
+            #UP
+            if level.car_map[car].y > 0 and level.level[level.car_map[car].x + (level.car_map[car].y -1) * sizegrid[0]] in ["o",car]:
+                new_level = list(level.level)
+                new_level[level.car_map[car].x + (level.car_map[car].y-1) * sizegrid[0]] = car
+                new_level[level.car_map[car].x + (level.car_map[car].y + level.car_map[car].size - 1) * sizegrid[0]] = "o"
+                yield ("".join(new_level), {**level.car_map, car: Position(level.car_map[car].x , level.car_map[car].y -1, level.car_map[car].size)})
 
-                    new_level[pos[0][0] + pos[0][1] * sizegrid[0]:pos[-1][0] + pos[-1][1] * sizegrid[0] + 1:sizegrid[0] if (pos[0][0] == pos[-1][0]) else 1] = [car for _ in range(len(pos))]
 
-                    neighbours.append("".join(new_level))
-                    pos= [(pos[x][0]+1,pos[x][1]) for x in range(len(pos))]
-
-    return neighbours
-
+            #DOWN
+            if level.car_map[car].y + level.car_map[car].size - 1 < sizegrid[1]-1 and level.level[level.car_map[car].x + (level.car_map[car].y + level.car_map[car].size) * sizegrid[0]] in ["o",car] :
+                new_level = list(level.level)
+                new_level[level.car_map[car].x + (level.car_map[car].y + level.car_map[car].size) * sizegrid[0]] = car
+                new_level[level.car_map[car].x + (level.car_map[car].y) * sizegrid[0]] = "o"
+                yield ("".join(new_level), {**level.car_map, car: Position(level.car_map[car].x , level.car_map[car].y +1, level.car_map[car].size)})
 
 def solve(level: str,heuristic:callable,goal:callable,sizegrid):
-    open_set = [level]
-
-    came_from = dict()
-
-    g_score = defaultdict(lambda: float("inf"))
-    g_score[level] = 0
-
-    f_score = defaultdict(lambda: float("inf"))
-    f_score[level] = heuristic(level,sizegrid)
-
+    open_set = [Node(heuristic(level,sizegrid),heuristic(level,sizegrid), 0,level, mapping(level,sizegrid))]
+    came_from = {level: None}
     while open_set:
-        #current = min(open_set, key=lambda x: f_score[x]) #otimizar
-        open_set.sort(key=lambda x: f_score[x])
-        current = open_set.pop(0)
-        if goal(current,sizegrid):
-            path = [current]
-            while current in came_from.keys():
-                current = came_from[current]
-                path.insert(0,current)
+        current = heapq.heappop(open_set)
+        if goal(current.level,sizegrid):
+            c = current.level
+            path = []
+            while c is not None:
+                path.insert(0,c)
+                c = came_from[c]
             return path[1:]
-
-        #open_set.remove(current)
         for neighbour in get_neighbours(current,sizegrid):
-            tentative_g_score = g_score[current] + 1
-            if tentative_g_score < g_score[neighbour]:
-                g_score[neighbour] = tentative_g_score
-                f_score[neighbour] = g_score[neighbour] + heuristic(neighbour,sizegrid)
-                came_from[neighbour] = current
-                if neighbour not in open_set:
-                    # printf(new_level)
-                    open_set.append(neighbour)
+            n = Node(
+                heuristic(neighbour[0],sizegrid) + (current.g_score + distancia(current.car_map,neighbour[1])),
+                heuristic(neighbour[0],sizegrid),
+                current.g_score + 1,
+                neighbour[0],
+                neighbour[1]
+            )
+            if n.level not in came_from:
+                heapq.heappush(open_set,n)
+                came_from[n.level]= current.level
+
+def distancia(car_map1, car_map2):
+    return sum (abs(cm1.x - cm2.x) +
+                abs(cm1.y - cm2.y) for cm1,cm2 in zip(car_map1.values(),car_map2.values()))
+
 
