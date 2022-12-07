@@ -7,8 +7,8 @@ import getpass
 import json
 import os
 import websockets
-from solve import solve, mapping, h, is_goal
-
+import threading
+from solve import solve, mapping, h, is_goal, Node
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -23,7 +23,6 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
         prev_board = []
         current_level = ""
 
-
         while True:
             try:
                 state = json.loads(
@@ -33,161 +32,100 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 if (not boards_cache and not moves_cache) or current_level != state["level"]:
                     level = state["grid"].split()[1]
                     size_grid = state["dimensions"]
-                    boards_cache = solve(level,h,is_goal,size_grid)
+                    boards_cache = solve(level, h, is_goal, size_grid)
                     prev_board = level
                     current_level = state["level"]
                     moves_cache = []
 
-
                 if not moves_cache and boards_cache:
                     level = state["grid"].split()[1]
                     if prev_board != level:
-                        #boards_cache = solve(level,h,is_goal,size_grid)
+                        LIMIT = 1 / (state["game_speed"] * 2)
 
-                        #old_mapping = mapping_new(boards_cache[min(10, len(boards_cache) - 1)],size_grid)
-                        old_mapping = mapping(prev_board,size_grid)
-                        def new_heuristic(board,size_grid):
-                            new_mapping = mapping(board,size_grid)
-                            #distancia manhattan
-                            return sum(abs(old_mapping[car].x -
-                                        new_mapping[car].x) + \
-                                       abs(old_mapping[car].y -
-                                        new_mapping[car].y) for car in new_mapping)
+                        def wrapper(out, level,h,is_goal,size_grid):
+                            out.append(solve(level,h,is_goal,size_grid))
 
-                        def new_goal(board,size_grid):
-                            #return board == boards_cache[min(10, len(boards_cache)-1)]
-                            return board == prev_board
+                        res = []
+                        t = threading.Thread(target=wrapper, args=(res, level,h,is_goal,size_grid))
+                        t.start()
+                        t.join(LIMIT)
+                        if t.is_alive():
+                            t.do_run = False
+                            print("You be dead")
+                            old_mapping = mapping(prev_board,size_grid)
+                            def new_heuristic(board,size_grid):
+                                new_mapping = mapping(board,size_grid)
+                                #distancia manhattan
+                                return sum(abs(old_mapping[car].x -
+                                               new_mapping[car].x) + \
+                                           abs(old_mapping[car].y -
+                                               new_mapping[car].y) for car in new_mapping)
 
-                        new_boards = solve(level,new_heuristic,new_goal,size_grid)
-                        #boards_cache = new_boards + boards_cache[min(10, len(boards_cache)-1):]
-                        boards_cache = new_boards + boards_cache
+                            def new_goal(board,size_grid):
+                                return board == prev_board
 
-
-                    board = boards_cache.pop(0)
-                    car_mapping = mapping(level,size_grid)
-                    new_mapping = mapping(board,size_grid)
-
-                    key = ""
-                    car_moved = ""
-                    for car in car_mapping:
-                        if car_mapping[car] != new_mapping[car]:
-                            car_moved = car
-                            vector = new_mapping[car].x - car_mapping[car].x, new_mapping[car].y - car_mapping[car].y
-                            if vector[0] > 0:
-                                key = "d"
-                            elif vector[0] < 0:
-                                key = "a"
-                            elif vector[1] > 0:
-                                key = "s"
-                            elif vector[1] < 0:
-                                key = "w"
-                            break
-
-                    #carro selecionado certo
-                    if state["selected"] == car:
-                        moves_cache.append((key,board))
-                    #nenhum carro selecionado
-                    else:
-                        if state["selected"] != "":
-                            moves_cache.append((" ",board))
-
-                        direction = "H" if level[car_mapping[car].x + car_mapping[car].y * size_grid[0]] == level[car_mapping[car].x + 1 + car_mapping[car].y * size_grid[0]] else "V"
-                        pseudo_cursor = state["cursor"]
-
-                        while  not (car_mapping[car].x <= pseudo_cursor[0] <= car_mapping[car].x + (car_mapping[car].size-1) * (direction == "H")):
-                            if pseudo_cursor[0] < car_mapping[car].x:
-                                moves_cache.append(("d",state["grid"].split()[1]))
-                                pseudo_cursor[0] += 1
-                            else:
-                                moves_cache.append(("a",state["grid"].split()[1]))
-                                pseudo_cursor[0] -= 1
+                            new_boards = solve(level,new_heuristic,new_goal,size_grid)
+                            boards_cache = new_boards + boards_cache
+                        else:
+                            boards_cache = res[0] + boards_cache
 
 
-                        while not (car_mapping[car].y <= pseudo_cursor[1] <= car_mapping[car].y + (car_mapping[car].size-1) * (direction == "V")):
-                            if pseudo_cursor[1] < car_mapping[car].y:
-                                moves_cache.append(("s",state["grid"].split()[1]))
-                                pseudo_cursor[1] += 1
-                            else:
-                                moves_cache.append(("w",state["grid"].split()[1]))
-                                pseudo_cursor[1] -= 1
+                    if boards_cache:
+                        board = boards_cache.pop(0)
+                        car_mapping = mapping(level, size_grid)
+                        new_mapping = mapping(board.level, size_grid)
+                        #
+                        key = ""
+                        car_moved = ""
+                        for car in car_mapping:
+                            if car_mapping[car] != new_mapping[car]:
+                                car_moved = car
+                                vector = new_mapping[car].x - car_mapping[car].x, new_mapping[car].y - car_mapping[car].y
+                                if vector[0] > 0:
+                                    key = "d"
+                                elif vector[0] < 0:
+                                    key = "a"
+                                elif vector[1] > 0:
+                                    key = "s"
+                                elif vector[1] < 0:
+                                    key = "w"
+                                break
 
-                        moves_cache.append((" ",level))
-                        moves_cache.append((key,board))
-                    #carro selecionado errado
+                        # carro selecionado certo
+                        if state["selected"] == car:
+                            moves_cache.append((key, board.level))
+                        # nenhum carro selecionado
+                        else:
+                            if state["selected"] != "":
+                                moves_cache.append((" ", board.level))
+
+                            direction = "H" if level[car_mapping[car].x + car_mapping[car].y * size_grid[0]] == level[car_mapping[car].x + 1 + car_mapping[car].y * size_grid[0]] else "V"
+                            pseudo_cursor = state["cursor"]
+
+                            while  not (car_mapping[car].x <= pseudo_cursor[0] <= car_mapping[car].x + (car_mapping[car].size-1) * (direction == "H")):
+                                if pseudo_cursor[0] < car_mapping[car].x:
+                                    moves_cache.append(("d", state["grid"].split()[1]))
+                                    pseudo_cursor[0] += 1
+                                else:
+                                    moves_cache.append(("a", state["grid"].split()[1]))
+                                    pseudo_cursor[0] -= 1
 
 
-                    # for car in car_mapping:
-                    #     if car_mapping[car] != new_mapping[car]:
-                    #         vector = new_mapping[car].x - car_mapping[car].x, new_mapping[car].y - car_mapping[car].y
-                    #
-                    #         key = ""
-                    #         if vector[0] > 0:
-                    #             key = "d"
-                    #         elif vector[0] < 0:
-                    #             key = "a"
-                    #         elif vector[1] > 0:
-                    #             key = "s"
-                    #         elif vector[1] < 0:
-                    #             key = "w"
-                    #         """
-                    #         if state["selected"] == car and car != level[state["cursor"][1]*6 + state["cursor"][0]]:
-                    #             moves_cache.extend([(key,board) for _ in  range(sum(vector))])
-                    #             state["selected"] = ""
-                    #         """
-                    #         if state["selected"] == car:
-                    #             moves_cache.append((key,"".join(new_level)))
-                    #         else:
-                    #             if state["selected"] != "":
-                    #                 moves_cache.append((" ",state["grid"].split()[1]))
-                    #
-                    #             pseudo_cursor = state["cursor"]
-                    #
-                    #             while  not (car_mapping[car][0][0] <= pseudo_cursor[0] <= car_mapping[car][-1][0]):
-                    #                 if pseudo_cursor[0] < car_mapping[car][0][0]:
-                    #                     moves_cache.append(("d",state["grid"].split()[1]))
-                    #                     pseudo_cursor[0] += 1
-                    #                 else:
-                    #                     moves_cache.append(("a",state["grid"].split()[1]))
-                    #                     pseudo_cursor[0] -= 1
-                    #
-                    #
-                    #             while not (car_mapping[car][0][1] <= pseudo_cursor[1] <= car_mapping[car][-1][1]):
-                    #                 if pseudo_cursor[1] < car_mapping[car][0][1]:
-                    #                     moves_cache.append(("s",state["grid"].split()[1]))
-                    #                     pseudo_cursor[1] += 1
-                    #                 else:
-                    #                     moves_cache.append(("w",state["grid"].split()[1]))
-                    #                     pseudo_cursor[1] -= 1
-                    #
-                    #             moves_cache.append((" ",state["grid"].split()[1]))
-                    #             for i in range(1,sum(map(abs,vector))+1):
-                    #                 new_level = list(level)
-                    #
-                    #                 for c in range(len(new_level)):
-                    #                     if new_level[c] == car:
-                    #                         new_level[c] = "o"
-                    #
-                    #                 for position in car_mapping[car]:
-                    #                     #vertical
-                    #                     if vector[0] == 0:
-                    #                         #up
-                    #                         if vector[1] < 0:
-                    #                             new_level[(position[1] -  i) * size_grid[0] + position[0]] = car
-                    #                         else : #down
-                    #                             new_level[(position[1] +  i) * size_grid[0] + position[0]] = car
-                    #                     else: #horizontal
-                    #                         #left
-                    #                         if vector[0] < 0:
-                    #                             new_level[position[1] * size_grid[0] + position[0] - i] = car
-                    #                         else: #right
-                    #                             new_level[position[1] * size_grid[0] + position[0] + i] = car
-                    #
-                    #                 moves_cache.append((key,"".join(new_level)))
-                    #             break
+                            while not (car_mapping[car].y <= pseudo_cursor[1] <= car_mapping[car].y + (car_mapping[car].size-1) * (direction == "V")):
+                                if pseudo_cursor[1] < car_mapping[car].y:
+                                    moves_cache.append(("s", state["grid"].split()[1]))
+                                    pseudo_cursor[1] += 1
+                                else:
+                                    moves_cache.append(("w", state["grid"].split()[1]))
+                                    pseudo_cursor[1] -= 1
+
+                            moves_cache.append((" ", level))
+                            moves_cache.append((key, board.level))
 
                 if moves_cache:
                     key, board = moves_cache.pop(0)
                     prev_board = board
+                    #print(board)
                     await websocket.send(
                         json.dumps({"cmd": "key", "key": key})
                     )
@@ -209,3 +147,4 @@ SERVER = os.environ.get("SERVER", "localhost")
 PORT = os.environ.get("PORT", "8000")
 NAME = os.environ.get("NAME", getpass.getuser())
 loop.run_until_complete(agent_loop(f"{SERVER}:{PORT}", NAME))
+
