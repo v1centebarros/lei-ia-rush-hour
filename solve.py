@@ -56,6 +56,7 @@ def get_neighbours(level,sizegrid):
 def solve(level: str,heuristic:callable,goal:callable,sizegrid):
     open_set = [Node(heuristic(level,sizegrid),heuristic(level,sizegrid), 0,level, mapping(level,sizegrid))]
     came_from = {level: None}
+    non_terminais = 0
     while open_set:
         current = heapq.heappop(open_set)
         if goal(current.level,sizegrid):
@@ -64,7 +65,8 @@ def solve(level: str,heuristic:callable,goal:callable,sizegrid):
             while c is not None:
                 path.insert(0,c)
                 c = came_from[c]
-            return path[1:]
+            return path[1:], non_terminais
+        non_terminais +=1
         for neighbour in get_neighbours(current,sizegrid):
             n = Node(
                 heuristic(neighbour[0],sizegrid) + (current.g_score + distancia(current.car_map,neighbour[1])),
