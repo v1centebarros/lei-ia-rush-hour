@@ -8,7 +8,7 @@ import json
 import os
 import websockets
 import threading
-from solve import solve, mapping, h, is_goal, Node
+from solve import solve, mapping, h, is_goal, depth
 
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -32,7 +32,13 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 if (not boards_cache and not moves_cache) or current_level != state["level"]:
                     level = state["grid"].split()[1]
                     size_grid = state["dimensions"]
-                    boards_cache = solve(level, h, is_goal, size_grid)
+                    # boards_cache = solve(level, h, is_goal, size_grid)
+                    # boards_cache = depth(level, is_goal, size_grid)
+                    if size_grid[0] <= 6:
+                        boards_cache = depth(level, is_goal, size_grid)
+                    else:
+                        boards_cache = solve(level,h,is_goal,size_grid)
+
                     prev_board = level
                     current_level = state["level"]
                     moves_cache = []
@@ -43,15 +49,18 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         LIMIT = 1 / (state["game_speed"] * 2)
 
                         def wrapper(out, level,h,is_goal,size_grid):
-                            out.append(solve(level,h,is_goal,size_grid))
-
+                            # out.append(solve(level,h,is_goal,size_grid))
+                            # out.append(depth(level, is_goal, size_grid))
+                            if size_grid[0] <= 6:
+                                out.append(depth(level, is_goal, size_grid))
+                            else:
+                                out.append(solve(level,h,is_goal,size_grid))
                         res = []
                         t = threading.Thread(target=wrapper, args=(res, level,h,is_goal,size_grid))
                         t.start()
                         t.join(LIMIT)
                         if t.is_alive():
                             t.do_run = False
-                            print("You be dead")
                             old_mapping = mapping(prev_board,size_grid)
                             def new_heuristic(board,size_grid):
                                 new_mapping = mapping(board,size_grid)
@@ -64,7 +73,11 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                             def new_goal(board,size_grid):
                                 return board == prev_board
 
-                            new_boards = solve(level,new_heuristic,new_goal,size_grid)
+                            if size_grid[0] <= 6:
+                                new_boards = depth(level, new_goal, size_grid)
+                            else:
+                                new_boards = solve(level,new_heuristic,new_goal,size_grid)
+
                             boards_cache = new_boards + boards_cache
                         else:
                             boards_cache = res[0] + boards_cache
@@ -74,12 +87,10 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         board = boards_cache.pop(0)
                         car_mapping = mapping(level, size_grid)
                         new_mapping = mapping(board.level, size_grid)
-                        #
+
                         key = ""
-                        car_moved = ""
                         for car in car_mapping:
                             if car_mapping[car] != new_mapping[car]:
-                                car_moved = car
                                 vector = new_mapping[car].x - car_mapping[car].x, new_mapping[car].y - car_mapping[car].y
                                 if vector[0] > 0:
                                     key = "d"
