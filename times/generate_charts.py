@@ -36,7 +36,7 @@ def plot_data2(data: dict, title: str, xlabel: str, ylabel: str, legend: list):
 def main():
     data = read_all_data("h1.txt", "h2.txt", "h3.txt", "h4.txt", "depth.txt")
     plot_data(data, "Tempo de execução por nível", "Nível", "Tempo (s)",
-              ["Heurística 1", "Heurística 2", "Heurística 3", "Heurística 4", "Depth"])
+              ["Heurística 1", "Heurística 2", "Heurística 3", "Heurística 4", "breadth"])
 
     data = read_all_data("h1.txt", "h2.txt", "h3.txt", "h4.txt")
     plot_data2(data, "Nós expandidos por nível", "Nível", " Número de nós expandidos",
