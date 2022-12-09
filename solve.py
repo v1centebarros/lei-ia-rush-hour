@@ -1,6 +1,6 @@
 # 97787 103823
 
-from collections import namedtuple
+from collections import namedtuple, Counter
 import threading
 import heapq
 
@@ -108,3 +108,50 @@ def depth(level:str, goal:callable, sizegrid):
 def distancia(car_map1, car_map2):
     return sum (abs(cm1.x - cm2.x) +
                 abs(cm1.y - cm2.y) for cm1,cm2 in zip(car_map1.values(), car_map2.values()))
+
+def simulate(boards, sizegrid, level):
+    level = list(level)
+    for i, move in enumerate(boards):
+        position = move.car_map[move.car_moved]
+        before = Counter(level)
+
+        if 0 > position.x or sizegrid[0] <= position.x or 0 > position.y or sizegrid[0] <= position.y:
+            return "ADD",
+
+        if move.key == "d": # right
+            if level[position.y * sizegrid[0] + position.x + position.size - 1] == move.car_moved:
+                print("AIAI" * 120)
+                return "DROP", i
+            level[position.y * sizegrid[0] + position.x - 1] = "o"
+            level[position.y * sizegrid[0] + position.x + position.size - 1] = move.car_moved
+        elif move.key == "a": # left
+            if level[position.y * sizegrid[0] + position.x] == move.car_moved:
+                print("OIOI" * 120)
+                return "DROP", i
+
+            level[position.y * sizegrid[0] + position.x + position.size] = "o"
+            level[position.y * sizegrid[0] + position.x] = move.car_moved
+        elif move.key == "w": # UP
+            if level[position.y * sizegrid[0] + position.x + (position.size - 1) * sizegrid[0]] == move.car_moved:
+                print("NADA" * 120)
+                return "DROP", i
+            level[(position.y - 1) * sizegrid[0] + position.x] = "o"
+            level[(position.y + position.size - 1) * sizegrid[0] + position.x] = move.car_moved
+        elif move.key == "s": # DOWN
+            if level[position.y * sizegrid[0] + position.x]  == move.car_moved:
+                print("FOGO" * 120)
+                return "DROP", i
+            level[(position.y + position.size) * sizegrid[0] + position.x] = "o"
+            level[position.y * sizegrid[0] + position.x] = move.car_moved
+
+        after = Counter(level)
+        for (_, v1), (_, v2) in zip(sorted(before.items()), sorted(after.items())):
+            if v1 != v2:
+                return "ADD",
+
+    if is_goal(level, sizegrid):
+        return None
+    return "ADD",
+
+def indexes(level, car, size):
+    return [Position(i % size[0], i // size[0], level.count(car)) for i, c in enumerate(level) if c == car]

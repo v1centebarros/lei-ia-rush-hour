@@ -8,8 +8,8 @@ import json
 import os
 import websockets
 import threading
-from solve import solve, mapping, h, is_goal, depth
-
+from solve import solve, mapping, is_goal, depth, simulate
+from times.heuristicas import h4 as h
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
     """Example client loop."""
@@ -45,7 +45,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                 if not moves_cache and boards_cache:
                     level = state["grid"].split()[1]
-                    if prev_board != level:
+                    if prev_board != level  and simulate(boards_cache, size_grid, level) is not None:
                         LIMIT = 1 / (state["game_speed"] * 2)
 
                         def wrapper(out, level,h,is_goal,size_grid):
@@ -56,7 +56,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                             else:
                                 out.append(solve(level,h,is_goal,size_grid))
                         res = []
-                        t = threading.Thread(target=wrapper, args=(res, level,h,is_goal,size_grid))
+                        t = threading.Thread(target=wrapper, args=(res, level,h4,is_goal,size_grid))
                         t.start()
                         t.join(LIMIT)
                         if t.is_alive():
