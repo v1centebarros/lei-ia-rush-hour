@@ -98,7 +98,7 @@ def a_star(level: str,heuristic:callable,goal:callable,sizegrid):
     open_set = [Node(heuristic(level,sizegrid),heuristic(level,sizegrid), 0,level, mapping(level,sizegrid),None,None)]
     came_from = {level: None}
     t = threading.current_thread()
-    # non_terminais = 0 
+    non_terminais = 0 
     while open_set and getattr(t, "do_run", True):
         current = heapq.heappop(open_set)
         if goal(current.level,sizegrid):
@@ -107,8 +107,8 @@ def a_star(level: str,heuristic:callable,goal:callable,sizegrid):
             while c is not None:
                 path.insert(0,c)
                 c = came_from[c.level]
-            return path[1:]# , non_terminais
-        # non_terminais +=1
+            return path[1:]#, non_terminais
+        non_terminais +=1
         for neighbour in get_neighbours(current,sizegrid):
             n = Node(
                 heuristic(neighbour[0],sizegrid) + (current.g_score + distancia(current.car_map,neighbour[1])),
@@ -133,6 +133,7 @@ def depth(level:str, goal:callable, sizegrid):
     open_set = [Node(0,0,0,level, mapping(level,sizegrid),None,None)]
     came_from = {level: None}
     t = threading.current_thread()
+    non_terminais = 0
     while open_set and getattr(t, "do_run", True):
         current = heapq.heappop(open_set)
         if goal(current.level,sizegrid):
@@ -141,7 +142,8 @@ def depth(level:str, goal:callable, sizegrid):
             while c is not None:
                 path.insert(0,c)
                 c = came_from[c.level]
-            return path[1:]
+            return path[1:]#, non_terminais
+        non_terminais +=1
         for neighbour in get_neighbours(current,sizegrid):
             n = Node(
                 0,
