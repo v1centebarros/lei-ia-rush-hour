@@ -1,7 +1,7 @@
 import time
 import math
 
-from solve import solve, is_goal
+from solve import a_star, is_goal
 from times.heuristicas import h1, h2, h3, h4
 
 
@@ -17,7 +17,7 @@ def level_times(h,file_name):
             continue
         level = level.split(" ")[1]
         size = int(math.sqrt(len(level)))
-        x = solve(level, h, is_goal, (size,size))
+        x = a_star(level, h, is_goal, (size,size))
         print(f"SOLUTION LENGTH: { i, len(x)}")
         f.write(f"{i};{time.time()-start};{len(x)}\n")
         i += 1
@@ -35,7 +35,7 @@ def level_no_expandidos(h,file_name):
             continue
         level = level.split(" ")[1]
         size = int(math.sqrt(len(level)))
-        x = solve(level, h, is_goal, (size,size))
+        x = a_star(level, h, is_goal, (size,size))
         print(f"SOLUTION LENGTH: { i, len(x[0]), x[1]}")
         f.write(f"{i};{x[1]};{len(x[0])}\n")
         i += 1

@@ -8,7 +8,7 @@ import json
 import os
 import websockets
 import threading
-from solve import solve, mapping, is_goal, depth, simulate
+from solve import a_star, mapping, is_goal, depth, simulate
 from times.heuristicas import h4 as h
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
@@ -29,34 +29,38 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                     await websocket.recv()
                 )  # receive game update, this must be called timely or your game will get out of sync with the server
 
+                # Caso não tenha nada ou o nível tenha mudado recalcular
                 if (not boards_cache and not moves_cache) or current_level != state["level"]:
-                    level = state["grid"].split()[1]
-                    size_grid = state["dimensions"]
-                    # boards_cache = solve(level, h, is_goal, size_grid)
-                    # boards_cache = depth(level, is_goal, size_grid)
+                    level = state["grid"].split()[1] # string de level
+                    size_grid = state["dimensions"]  # tuplo de dimensões
+
+                    #Verificar qual é o melhor algoritmo a usar para obter o melhor resultado
                     if size_grid[0] <= 6:
                         boards_cache = depth(level, is_goal, size_grid)
                     else:
-                        boards_cache = solve(level,h,is_goal,size_grid)
+                        boards_cache = a_star(level,h,is_goal,size_grid)
 
+                    # O nível anterior é o nível atual
                     prev_board = level
                     current_level = state["level"]
                     moves_cache = []
 
+
                 if not moves_cache and boards_cache:
                     level = state["grid"].split()[1]
-                    if prev_board != level  and simulate(boards_cache, size_grid, level) is not None:
+                    if prev_board != level: #and simulate(boards_cache, size_grid, level) is not None: #Usar o simulate para verificar para prever os crazy cars
+
+                        # Lidar com os crazy cars
                         LIMIT = 1 / (state["game_speed"] * 2)
 
                         def wrapper(out, level,h,is_goal,size_grid):
-                            # out.append(solve(level,h,is_goal,size_grid))
-                            # out.append(depth(level, is_goal, size_grid))
+
                             if size_grid[0] <= 6:
                                 out.append(depth(level, is_goal, size_grid))
                             else:
-                                out.append(solve(level,h,is_goal,size_grid))
+                                out.append(a_star(level,h,is_goal,size_grid))
                         res = []
-                        t = threading.Thread(target=wrapper, args=(res, level,h4,is_goal,size_grid))
+                        t = threading.Thread(target=wrapper, args=(res, level,h,is_goal,size_grid))
                         t.start()
                         t.join(LIMIT)
                         if t.is_alive():
@@ -76,13 +80,13 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                             if size_grid[0] <= 6:
                                 new_boards = depth(level, new_goal, size_grid)
                             else:
-                                new_boards = solve(level,new_heuristic,new_goal,size_grid)
+                                new_boards = a_star(level,new_heuristic,new_goal,size_grid)
 
                             boards_cache = new_boards + boards_cache
                         else:
                             boards_cache = res[0] + boards_cache
 
-
+                    # Fazer o movimento
                     if boards_cache:
                         board = boards_cache.pop(0)
                         car_mapping = mapping(level, size_grid)
@@ -136,13 +140,9 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                 if moves_cache:
                     key, board = moves_cache.pop(0)
                     prev_board = board
-                    #print(board)
                     await websocket.send(
                         json.dumps({"cmd": "key", "key": key})
                     )
-                # await websocket.send(
-                #     json.dumps({"cmd": "key", "key": moves_cache.pop(0)})
-                # )
 
 
             except websockets.exceptions.ConnectionClosedOK:
