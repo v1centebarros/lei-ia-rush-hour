@@ -8,7 +8,7 @@ import json
 import os
 import websockets
 import threading
-from solve import a_star, mapping, is_goal, depth, h
+from solve import a_star, mapping, is_goal, breadth, h
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
     """Example client loop."""
@@ -35,7 +35,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
 
                     #Verificar qual é o melhor algoritmo a usar para obter o melhor resultado
                     if size_grid[0] <= 6:
-                        boards_cache = depth(level, is_goal, size_grid)
+                        boards_cache = breadth(level, is_goal, size_grid)
                     else:
                         boards_cache = a_star(level,h,is_goal,size_grid)
 
@@ -55,7 +55,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                         def wrapper(out, level,h,is_goal,size_grid):
 
                             if size_grid[0] <= 6:
-                                out.append(depth(level, is_goal, size_grid))
+                                out.append(breadth(level, is_goal, size_grid))
                             else:
                                 out.append(a_star(level,h,is_goal,size_grid))
                         res = []
@@ -77,7 +77,7 @@ async def agent_loop(server_address="localhost:8000", agent_name="student"):
                                 return board == prev_board
 
                             if size_grid[0] <= 6:
-                                new_boards = depth(level, new_goal, size_grid)
+                                new_boards = breadth(level, new_goal, size_grid)
                             else:
                                 new_boards = a_star(level,new_heuristic,new_goal,size_grid)
 

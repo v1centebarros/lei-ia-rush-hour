@@ -121,7 +121,7 @@ def a_star(level: str,heuristic:callable,goal:callable,sizegrid):
                 came_from[n.level]= current
 
 
-def depth(level:str, goal:callable, sizegrid):
+def breadth(level:str, goal:callable, sizegrid):
     """
     :param level: 'string' que representa o nível,
     :param goal: função de verifica se está no objetivo final,
@@ -152,6 +152,7 @@ def depth(level:str, goal:callable, sizegrid):
             if n.level not in came_from:
                 heapq.heappush(open_set,n)
                 came_from[n.level]= current
+
 
 
 def simulate(boards, sizegrid, level):
