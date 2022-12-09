@@ -8,8 +8,7 @@ import json
 import os
 import websockets
 import threading
-from solve import a_star, mapping, is_goal, depth, simulate
-from times.heuristicas import h4 as h
+from solve import a_star, mapping, is_goal, depth, h
 
 async def agent_loop(server_address="localhost:8000", agent_name="student"):
     """Example client loop."""
